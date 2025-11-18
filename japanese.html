@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>日語學習字卡 - 全螢幕模式</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background: #f8f9fa;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+            padding: 12px 16px; /* 上下內縮 */
+        }
+
+        .flashcard-container {
+            perspective: 1000px;
+            width: 90vw;
+            height: 60vh;
+            margin: 0 auto 24px;
+            cursor: pointer;
+        }
+
+        .flashcard {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transition: transform 0.6s ease;
+        }
+
+        .flashcard.flipped {
+            transform: rotateY(180deg);
+        }
+
+        .card-face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            font-size: 5.5vw;
+            font-weight: 700;
+            line-height: 1.3;
+            padding: 10px;
+            text-align: center;
+            overflow-wrap: break-word;
+        }
+
+        .card-front {
+            background: #3498db;
+            color: white;
+        }
+
+        .card-back {
+            background: #2ecc71;
+            color: white;
+            transform: rotateY(180deg);
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .nav-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+        }
+
+        button {
+            background: #34495e;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 24px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            min-width: 100px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #2c3e50;
+        }
+
+        .counter {
+            color: #7f8c8d;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        @media (max-width: 480px) {
+            .card-face {
+                font-size: 5vw;
+            }
+            button {
+                padding: 12px 20px;
+                font-size: 16px;
+            }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- 字卡 -->
+    <div class="flashcard-container">
+        <div class="flashcard" id="flashcard">
+            <div class="card-face card-front" id="front"></div>
+            <div class="card-face card-back" id="back"></div>
+        </div>
+    </div>
+
+    <!-- 控制按鈕與計數器 -->
+    <div class="controls">
+        <div class="nav-buttons">
+            <button id="prev">◀ Back</button>
+            <button id="flip">Flip</button>
+            <button id="next">Next ▶</button>
+        </div>
+        <div class="counter" id="counter"></div>
+    </div>
+
+    <script>
+        // ===== 日語詞庫（來自 flashcards (2).csv）=====
+        const vocabulary = {
+            ja: [
+                {"front":"朝陽","back":"朝日 (あさひ)"},
+                {"front":"關係","back":"間柄 (あいだがら)"},
+                {"front":"閃電","back":"稲光 (いなびかり)"},
+                {"front":"泡沫","back":"泡 (あわ)"},
+                {"front":"鏡子","back":"鏡 (かがみ)"},
+                {"front":"海邊","back":"海辺 (うみべ)"},
+                {"front":"隔壁","back":"隣 (となり)"},
+                {"front":"枯葉","back":"枯葉 (かれは)"},
+                {"front":"藉口","back":"言い訳 (いいわけ)"},
+                {"front":"接待、處理","back":"取り扱い (とりあつかい)"},
+                {"front":"才幹、能力","back":"腕前 (うでまえ)"},
+                {"front":"島嶼","back":"島 (しま)"},
+                {"front":"餘額","back":"残高 (ざんだか)"},
+                {"front":"窗戶","back":"窓 (まど)"},
+                {"front":"過分、胡來","back":"無茶 (むちゃ)"},
+                {"front":"原則、場面話","back":"建前 (たてまえ)"},
+                {"front":"段落、告一段落","back":"区切り (くぎり)"},
+                {"front":"當地","back":"地元 (じもと)"},
+                {"front":"嚮導、入門指南","back":"手引き (てびき)"},
+                {"front":"估價","back":"見積もり (みつもり)"},
+                {"front":"淡的、淺的","back":"淡い (あわい)"},
+                {"front":"厚臉皮的","back":"厚かましい (あつかましい)"},
+                {"front":"顯著的、明顯的","back":"著しい (いちじるしい)"},
+                {"front":"忙碌的","back":"忙しい (いそがしい)"},
+                {"front":"可恨的、遺憾的","back":"恨めしい (うらめしい)"},
+                {"front":"羨慕的","back":"羨ましい (うらやましい)"},
+                {"front":"吵鬧的","back":"騒がしい (さわがしい)"},
+                {"front":"鹹的","back":"塩辛い (しおからい)"},
+                {"front":"鋒利的、敏銳的","back":"鋭い (するどい)"},
+                {"front":"遲鈍的","back":"鈍い (にぶい)"},
+                {"front":"微溫的、不夠徹底的","back":"温い (ぬるい)"},
+                {"front":"理想的、令人滿意的","back":"望ましい (のぞましい)"},
+                {"front":"害羞的、丟臉的","back":"恥ずかしい (はずかしい)"},
+                {"front":"耀眼的","back":"眩しい (まぶしい)"},
+                {"front":"脆弱的、易碎的","back":"脆い (もろい)"},
+                {"front":"瀟灑、漂亮","back":"粋 (いき)"},
+                {"front":"繁榮的","back":"盛ん (さかん)"},
+                {"front":"誇張的","back":"大げさ (おおげさ)"},
+                {"front":"平穩的、溫和的","back":"穏やか (おだやか)"},
+                {"front":"寡言的","back":"無口 (むくち)"},
+                {"front":"好奇、古怪的","back":"物好き (ものずき)"},
+                {"front":"關鍵的、重要的","back":"肝心 (かんじん)"},
+                {"front":"勤勉的","back":"勤勉 (きんべん)"},
+                {"front":"小氣的","back":"けち"},
+                {"front":"健康的、健壯的","back":"健やか (すこやか)"},
+                {"front":"光滑的、流利的","back":"滑らか (なめらか)"},
+                {"front":"和睦的、溫和的","back":"和やか (なごやか)"},
+                {"front":"微妙的、不明朗的","back":"微妙 (びみょう)"},
+                {"front":"豐富的、富饒的","back":"豊か (ゆたか)"},
+                {"front":"緩慢的、平緩的","back":"緩やか (ゆるやか)"},
+                {"front":"啊！、噢！","back":"嗚呼 (ああ)"},
+                {"front":"一起、互相","back":"相 (あい)"},
+                {"front":"一如往常","back":"相変わらず (あいかわらず)"},
+                {"front":"和藹、殷勤","back":"愛想 (あいそ)"},
+                {"front":"面對面、對質","back":"相対 (あいたい)"},
+                {"front":"喜好與厭惡","back":"愛憎 (あいにく)"},
+                {"front":"間隔、空檔","back":"合間 (あいま)"},
+                {"front":"模糊的、含糊不清的","back":"曖昧 (あいまい)"},
+                {"front":"硬要、敢於","back":"敢えて (あえて)"},
+                {"front":"仰望、尊敬","back":"仰ぐ (あおぐ)"},
+                {"front":"污垢、髒污","back":"垢 (あか)"},
+                {"front":"亞科","back":"亜科 (あか)"},
+                {"front":"銅","back":"銅 (あかがね)"},
+                {"front":"證明、證據","back":"証 (あかし)"},
+                {"front":"赤字、虧損","back":"赤字 (あかじ)"},
+                {"front":"度過、揭露","back":"明かす (あかす)"},
+                {"front":"嬰兒","back":"赤ちゃん (あかちゃん)"},
+                {"front":"明顯地、坦白地","back":"明白 (あからさま)"},
+                {"front":"變紅、臉紅","back":"赤らむ (あからむ)"},
+                {"front":"斜坡、上升、收成","back":"上がり (あがり)"},
+                {"front":"商人","back":"商人 (あきうど)"},
+                {"front":"空位、空房","back":"空間 (あきま)"},
+                {"front":"放棄、斷念","back":"諦め (あきらめ)"},
+                {"front":"驚訝、嚇呆","back":"呆れる (あきれる)"},
+                {"front":"邪惡、壞事","back":"悪 (あく)"},
+                {"front":"澀汁、浮渣","back":"灰 (あく)"},
+                {"front":"過於華麗的、惡毒的","back":"あくどい"},
+                {"front":"不吉利的日子","back":"悪日 (あくび)"},
+                {"front":"下一個、翌","back":"明くる (あくる)"},
+                {"front":"憧憬、嚮往","back":"憧れ (あこがれ)"},
+                {"front":"下巴","back":"顎 (あご)"},
+                {"front":"麻","back":"麻 (あさ)"},
+                {"front":"睡懶覺、晚起的人","back":"朝寝坊 (あさねぼう)"},
+                {"front":"悲慘的、卑鄙的","back":"浅ましい (あさましい)"},
+                {"front":"村里的一區","back":"字 (あざ)"},
+                {"front":"欺騙","back":"欺く (あざむく)"},
+                {"front":"鮮明的、出色的","back":"鮮やか (あざやか)"},
+                {"front":"嘲笑、譏諷","back":"あざ笑う (あざわらう)"},
+                {"front":"味道、意義","back":"味わい (あじわい)"},
+                {"front":"東邊、日本東部","back":"東 (あずま)"},
+                {"front":"焦急、急躁","back":"焦る (あせる)"},
+                {"front":"那裡、那個地方","back":"彼処 (あそこ)"},
+                {"front":"價值、價格","back":"値 (あたい)"},
+                {"front":"值得、配得上","back":"値する (あたいする)"},
+                {"front":"我 (女性用語)","back":"私 (あたし)"},
+                {"front":"命中、成功、附近","back":"当たり (あたり)"},
+                {"front":"理所當然的、普通的","back":"当たり前 (あたりまえ)"},
+                {"front":"他人、外人","back":"他人 (あだびと)"},
+                {"front":"這裡那裡、到處","back":"彼方此方 (あちこち)"},
+                {"front":"惡化","back":"悪化 (あっか)"},
+                {"front":"不夠的、太快的","back":"呆気ない (あっけない)"},
+                {"front":"謾罵、中傷","back":"悪口 (あっこう)"},
+                {"front":"簡單地、輕易地","back":"あっさり"},
+                {"front":"壓迫、威壓","back":"圧迫 (あっぱく)"},
+                {"front":"對待、處理","back":"扱い (あつかい)"},
+                {"front":"訂做","back":"誂える (あつらえる)"},
+                {"front":"壓力","back":"圧力 (あつりょく)"},
+                {"front":"目標、期望","back":"当て (あて)"},
+                {"front":"收件人","back":"宛 (あて)"},
+                {"front":"假借字、諧音字","back":"当て字 (あてじ)"},
+                {"front":"適用(規則)","back":"当てはまる (あてはまる)"},
+                {"front":"應用、套用","back":"当てはめる (あてはめる)"},
+                {"front":"寫上收件人地址","back":"宛てる (あてる)"},
+                {"front":"繼承人","back":"跡継ぎ (あとつぎ)"},
+                {"front":"延後、推遲","back":"後回し (あとまわし)"},
+                {"front":"滿溢、氾濫","back":"溢れる (あふれる)"},
+                {"front":"油畫","back":"油絵 (あぶらえ)"},
+                {"front":"烤、烘","back":"炙る (あぶる)"},
+                {"front":"相反、顛倒","back":"あべこべ"},
+                {"front":"撒嬌、奉承","back":"甘える (あまえる)"},
+                {"front":"甜味、奉承話","back":"甘口 (あまくち)"},
+                {"front":"雨具","back":"雨具 (あまぐ)"},
+                {"front":"天的、天皇的","back":"天 (あまつ)"},
+                {"front":"網、網絡","back":"網 (あみ)"},
+                {"front":"天地、宇宙","back":"天地 (あめつち)"},
+                {"front":"操縱、操作","back":"操る (あやつる)"},
+                {"front":"不確定的、含糊的","back":"あやふや"},
+                {"front":"擔心、懷疑","back":"危ぶむ (あやぶむ)"},
+                {"front":"過錯、失誤","back":"過ち (あやまち)"},
+                {"front":"犯錯","back":"誤る (あやまる)"},
+                {"front":"步行、步伐","back":"歩み (あゆみ)"},
+                {"front":"步行、前進","back":"歩む (あゆむ)"},
+                {"front":"預先、事先","back":"予め (あらかじめ)"},
+                {"front":"使荒蕪、破壞","back":"荒らす (あらす)"},
+                {"front":"概要、大綱","back":"粗筋 (あらすじ)"},
+                {"front":"爭執、紛爭","back":"争い (あらそい)"},
+                {"front":"更新、革新","back":"改まる (あらたまる)"},
+                {"front":"粗暴的、粗魯的","back":"荒っぽい (あらっぽい)"},
+                {"front":"所有的、一切的","back":"凡ゆる (あらゆる)"},
+                {"front":"體現、具現化","back":"現われ (あらわれ)"},
+                {"front":"狀態、情況","back":"有様 (ありさま)"},
+                {"front":"照原樣、事實","back":"有りのまま (ありのまま)"},
+                {"front":"某個、有的","back":"或る (ある)"},
+                {"front":"或者、也許","back":"或いは (あるいは)"},
+                {"front":"這個那個、種種","back":"彼此 (あれこれ)"},
+                {"front":"合併、使面對","back":"合わす (あわす)"},
+                {"front":"合在一起、對面","back":"合わせ (あわせ)"},
+                {"front":"匆忙的、慌張的","back":"慌ただしい (あわただしい)"},
+                {"front":"慌張、張皇失措","back":"慌てる (あわてる)"},
+                {"front":"暗殺","back":"暗殺 (あんさつ)"},
+                {"front":"心算","back":"暗算 (あんざん)"},
+                {"front":"暗示、提示","back":"暗示 (あんじ)"},
+                {"front":"擔心、思索","back":"案じる (あんじる)"},
+                {"front":"安靜、休養","back":"安静 (あんせい)"},
+                {"front":"果然、不出所料","back":"案の定 (あんのじょう)"},
+                {"front":"不太、剩餘","back":"余り (あんまり)"},
+                {"front":"依據、取決於","back":"依 (い)"},
+                {"front":"適度的、敷衍的、不負責任的","back":"いい加減 (いいかげん)"},
+                {"front":"離家出走","back":"家出 (いえで)"},
+                {"front":"房東","back":"家主 (いえぬし)"},
+                {"front":"如何、怎麼樣","back":"如何 (いかが)"},
+                {"front":"使...活下去、利用","back":"生かす (いかす)"},
+                {"front":"打雷","back":"雷 (いかずち)"},
+                {"front":"怎樣地、如何地","back":"如何に (いかに)"},
+                {"front":"的確、真的","back":"如何にも (いかにも)"},
+                {"front":"生氣、憤怒","back":"怒り (いかり)"},
+                {"front":"生氣","back":"怒る (いかる)"},
+                {"front":"彎曲、歪斜","back":"歪む (いがむ)"},
+                {"front":"帥氣、精粹","back":"粋 (いき)"},
+                {"front":"區域外","back":"域外 (いきがい)"},
+                {"front":"興致勃勃","back":"意気込む (いきごむ)"},
+                {"front":"事情的經過、原委","back":"経緯 (いきさつ)"},
+                {"front":"錯過、誤會","back":"行き違い (いきちがい)"},
+                {"front":"突然","back":"行き成り (いきなり)"},
+                {"front":"異議、反對","back":"異議 (いぎ)"},
+                {"front":"戰爭、戰鬥","back":"軍 (いくさ)"},
+                {"front":"培育、培養","back":"育成 (いくせい)"},
+                {"front":"許多、多數","back":"幾多 (いくた)"},
+                {"front":"插花","back":"活ける (いける)"},
+                {"front":"不同意見、反對","back":"異見 (いけん)"},
+                {"front":"意圖、想法","back":"意向 (いこう)"},
+                {"front":"轉移、過渡","back":"移行 (いこう)"},
+                {"front":"來吧、喂、關鍵時刻","back":"いざ"},
+                {"front":"刻有銘文的石碑","back":"碑 (いしぶみ)"},
+                {"front":"服裝、衣裳","back":"衣装 (いしょう)"},
+                {"front":"性格、骨氣、固執","back":"意地 (いじ)"},
+                {"front":"欺負、虐待","back":"苛める (いじめる)"},
+                {"front":"移居、移民","back":"移住 (いじゅう)"},
+                {"front":"玩弄、觸碰","back":"弄る (いじる)"},
+                {"front":"哪裡、哪個、反正","back":"何れ (いずれ)"},
+                {"front":"異性","back":"異性 (いせい)"},
+                {"front":"古蹟、遺跡","back":"遺跡 (いせき)"},
+                {"front":"依然、照舊","back":"依然 (いぜん)"},
+                {"front":"依賴、依靠","back":"依存 (いそん)"},
+                {"front":"委託","back":"委託 (いたく)"},
+                {"front":"惡作劇","back":"悪戯 (いたずら)"},
+                {"front":"頭頂、山頂","back":"頂 (いただき)"},
+                {"front":"我開動了(飯前用語)","back":"戴きます (いただきます)"},
+                {"front":"非常、極其","back":"至って (いたって)"},
+                {"front":"疼痛、受傷","back":"痛む (いたむ)"},
+                {"front":"弄痛、使苦惱","back":"痛める (いためる)"},
+                {"front":"炒","back":"炒める (いためる)"},
+                {"front":"憐憫、同情、照顧","back":"労る (いたわる)"},
+                {"front":"市場、市集","back":"市 (いち)"},
+                {"front":"位置、地點","back":"位地 (いち)"},
+                {"front":"逐一、一個一個地","back":"一々 (いちいち)"},
+                {"front":"一概、無條件地","back":"一概に (いちがいに)"}
+            ]
+        };
+
+        // 從 URL 參數讀取語言（預設為日語）
+        const urlParams = new URLSearchParams(window.location.search);
+        const lang = urlParams.get('lang') || 'ja';
+        const cards = vocabulary[lang] || vocabulary.ja;
+
+        let currentIndex = 0;
+
+        const flashcard = document.getElementById('flashcard');
+        const front = document.getElementById('front');
+        const back = document.getElementById('back');
+        const counter = document.getElementById('counter');
+
+        function updateCard() {
+            const card = cards[currentIndex];
+            front.textContent = card.front;
+            back.textContent = card.back;
+            counter.textContent = `${currentIndex + 1} / ${cards.length}`;
+            flashcard.classList.remove('flipped');
+        }
+
+        document.getElementById('flip').addEventListener('click', () => {
+            flashcard.classList.toggle('flipped');
+        });
+
+        document.getElementById('next').addEventListener('click', () => {
+            currentIndex = (currentIndex + 1) % cards.length;
+            updateCard();
+        });
+
+        document.getElementById('prev').addEventListener('click', () => {
+            currentIndex = (currentIndex - 1 + cards.length) % cards.length;
+            updateCard();
+        });
+
+        flashcard.addEventListener('click', () => {
+            flashcard.classList.toggle('flipped');
+        });
+
+        updateCard();
+    </script>
+</body>
+</html>
